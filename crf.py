@@ -67,19 +67,24 @@ class CRF(object):
         The matrix for the first time step does not use transition features
         and should be a diagonal matrix.
 
-        TODO: Implement this function
-
         Returns :
             a list of transition matrices
         """
+        #TODO: Implement this function
         transition_matrices = []
         num_labels = len(self.label_codebook)
+        #dummy matrix
         transition_matrix = np.zeros((num_labels, num_labels))
         transition_matrices.append(transition_matrix)
-        for t in range(len(sequence)):
-            # compute transition matrix
-            transition_matrix = np.zeros((num_labels, num_labels))
+        # diagonal matrix for first time step
+        transition_matrix = np.diag(np.diag(np.ones((num_labels, num_labels))))
+        transition_matrices.append(transition_matrix)
+
+        for t in range(2, len(sequence)):
+            transition_matrix = np.copy(transition_matrices[-1])
+            transition_matrix[sequence[t - 1].label_index, sequence[t].label_index] += 1
             transition_matrices.append(transition_matrix)
+
         return transition_matrices
 
     def forward(self, sequence, transition_matrices):
@@ -87,17 +92,29 @@ class CRF(object):
 
         TODO: Implement this function
         """
+        #TODO: Implement this function
+
         num_labels = len(self.label_codebook)
         alpha_matrix = np.zeros((num_labels, len(sequence) + 1))
-        for t in range(len(sequence) + 1):
-            pass
-        return alpha_matrix            
+        #initialization step
+        for s in range(num_labels):
+            alpha_matrix[s][0] = transition_matrices[0][0][s] * 1
+        #recursion step
+        for t in range(1, len(sequence) + 1):
+            for s in range(num_labels):
+
+                alpha_matrix[s][t] =
+        print alpha_matrix
+        print
+        return alpha_matrix
 
     def backward(self, sequence, transition_matrices):
         """Compute beta matrix in the backward algorithm
 
         TODO: Implement this function
         """
+        #TODO: Implement this function
+
         num_labels = len(self.label_codebook)
         beta_matrix = np.zeros((num_labels, len(sequence) + 1))
         time = range(len(sequence) + 1)
@@ -114,6 +131,8 @@ class CRF(object):
         Returns :
             a list of label indices (the same length as the sequence)
         """
+        #TODO: Implement this function
+
         transition_matrices = self.compute_transition_matrices(sequence)
         decoded_sequence = range(len(sequence))
 
