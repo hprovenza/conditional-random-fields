@@ -1,4 +1,6 @@
 import numpy as np
+from math import exp
+import scipy.misc
 
 class CRF(object):
 
@@ -25,7 +27,6 @@ class CRF(object):
         """
         num_labels = len(self.label_codebook)
         num_features = len(self.feature_codebook)
-
         num_batches = len(training_set) / batch_size
         total_expected_feature_count = np.zeros((num_labels, num_features))
         total_expected_transition_count = np.zeros((num_labels, num_labels))
@@ -73,19 +74,43 @@ class CRF(object):
         #TODO: Implement this function
         transition_matrices = []
         num_labels = len(self.label_codebook)
-        #dummy matrix
+
+        #dummy matrix as t=0 placeholder
         transition_matrix = np.zeros((num_labels, num_labels))
         transition_matrices.append(transition_matrix)
+
         # diagonal matrix for first time step
-        transition_matrix = np.diag(np.diag(np.ones((num_labels, num_labels))))
+        transition_matrix = np.zeros((num_labels, num_labels))
+        for s in range(num_labels):
+            w = sum([self.feature_parameters[s][self.feature_codebook[f]] for f in \
+                     sequence[0].sequence_features(0, sequence)])
+            transition_matrix[s][s] = np.exp(w)
         transition_matrices.append(transition_matrix)
 
-        for t in range(2, len(sequence)):
+        # filling in the rest of the matrix
+        for t in range(1, len(sequence)):
             transition_matrix = np.copy(transition_matrices[-1])
-            transition_matrix[sequence[t - 1].label_index, sequence[t].label_index] += 1
+            for s in range(num_labels):
+                prob = self.compute_conditional_probability(s, t, sequence, num_labels)
+                for _s in range(num_labels):
+                    transition_matrix[_s][s] += prob
             transition_matrices.append(transition_matrix)
 
+        # #transforming from counts to probabilities
+        # for t in range(len(transition_matrices)):
+        #     row_sums = transition_matrices[t].sum(axis=1)
+        #     transition_matrices[t] = transition_matrices[t] / row_sums[:, np.newaxis]
+
         return transition_matrices
+
+    def compute_conditional_probability(self, s, t, sequence, num_labels):
+        top = sum([self.feature_parameters[s][self.feature_codebook[feature]] for feature in \
+                   sequence[0].sequence_features(t, sequence)])
+        bottom = [sum([self.feature_parameters[label][self.feature_codebook[feature]] for feature in \
+                       sequence[0].sequence_features(t-1, sequence)]) for label in
+                  range(num_labels)]
+        posterior = exp(top - scipy.misc.logsumexp(bottom))
+        return posterior
 
     def forward(self, sequence, transition_matrices):
         """Compute alpha matrix in the forward algorithm
@@ -93,19 +118,21 @@ class CRF(object):
         TODO: Implement this function
         """
         #TODO: Implement this function
-
+        print "ALPHAS"
         num_labels = len(self.label_codebook)
         alpha_matrix = np.zeros((num_labels, len(sequence) + 1))
+
         #initialization step
         for s in range(num_labels):
-            alpha_matrix[s][0] = transition_matrices[0][0][s] * 1
-        #recursion step
-        for t in range(1, len(sequence) + 1):
-            for s in range(num_labels):
+            alpha_matrix[s][0] = 1
 
-                alpha_matrix[s][t] =
+        #recursion step
+        for t in range(1, len(sequence)):
+            for s in range(num_labels):
+                prob = self.compute_conditional_probability(s, t, sequence, num_labels)
+                k = sum([transition_matrices[t][x][s] * alpha_matrix[x][t-1] for x in range(num_labels)])
+                alpha_matrix[s][t] = prob * k
         print alpha_matrix
-        print
         return alpha_matrix
 
     def backward(self, sequence, transition_matrices):
@@ -114,13 +141,24 @@ class CRF(object):
         TODO: Implement this function
         """
         #TODO: Implement this function
-
+        print "BETAS"
         num_labels = len(self.label_codebook)
         beta_matrix = np.zeros((num_labels, len(sequence) + 1))
-        time = range(len(sequence) + 1)
+        time = range(1, len(sequence))
         time.reverse()
+
+        # initialization step
+        for s in range(num_labels):
+            beta_matrix[s][len(sequence)] = 1
+
+        #recursion step
         for t in time:
-            pass
+            for s in range(num_labels):
+                prob = self.compute_conditional_probability(s, t, sequence, num_labels)
+                k = sum([transition_matrices[t][x][s] * beta_matrix[x][t+1] for x in range(num_labels)])
+                beta_matrix[s][t] = prob * k
+
+        print beta_matrix
         return beta_matrix
 
     def decode(self, sequence):
