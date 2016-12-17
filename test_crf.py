@@ -32,11 +32,7 @@ class TestCRF(TestCase):
         beta = self.crf.backward(sequence, transition_matrices)
         Z = alpha[:,-1].sum()
         for t in range(len(sequence)-1):
-            print "t", t, "Z", Z, "dot product", alpha[:,t].dot(beta[:,t])
-            if alpha[:,t].dot(beta[:,t]) == Z:
-                continue
-            else:
-                print "uhoh!", t
+            self.assertEqual(alpha[:,t].dot(beta[:,t]), Z)
 
 if __name__ == '__main__':
     main()
