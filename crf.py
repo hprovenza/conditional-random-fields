@@ -17,7 +17,7 @@ class CRF(object):
 
         Feel free to adjust the hyperparameters (learning rate and batch sizes)
         """
-        self.train_sgd(training_set, dev_set, 0.001, 200)
+        self.train_sgd(training_set, dev_set, 0.01, 200)
 
     def train_sgd(self, training_set, dev_set, learning_rate, batch_size):
         """Minibatch SGF for training linear chain CRF
@@ -55,7 +55,6 @@ class CRF(object):
                 self.transition_parameters += learning_rate * transition_gradient
                 print sequence_accuracy(self, dev_set)
 
-
     def compute_transition_matrices(self, sequence):
         """Compute transition matrices (denoted as M on the slides)
 
@@ -89,28 +88,20 @@ class CRF(object):
 
         # filling in the rest of the matrix
         for t in range(1, len(sequence)):
-            transition_matrix = np.copy(transition_matrices[-1])
+            transition_matrix = np.zeros((num_labels, num_labels))
             for s in range(num_labels):
-                prob = self.compute_conditional_probability(s, t, sequence, num_labels)
                 for _s in range(num_labels):
-                    transition_matrix[_s][s] += prob
+                    transition_matrix[_s][s] = self.compute_transition_matrix_value(_s, s, sequence, t)
             transition_matrices.append(transition_matrix)
-
         return transition_matrices
 
-    def compute_conditional_probability(self, s, t, sequence, num_labels):
-        top = sum([self.feature_parameters[s][self.feature_codebook[feature]] for feature in \
-                   sequence[0].sequence_features(t, sequence)])
-        bottom = [sum([self.feature_parameters[label][self.feature_codebook[feature]] for feature in \
-                       sequence[0].sequence_features(t-1, sequence)]) for label in
-                  range(num_labels)]
-        posterior = exp(top - scipy.misc.logsumexp(bottom))
-        return posterior
+    def compute_transition_matrix_value(self, _s, s, sequence, t):
+        lam_state = self.transition_parameters[_s][s]
+        lam_feat = sum([self.feature_parameters[_s][self.feature_codebook[f]] for f in sequence[t].sequence_features(t, sequence)])
+        return exp(lam_feat + lam_state)
 
     def forward(self, sequence, transition_matrices):
         """Compute alpha matrix in the forward algorithm
-
-        TODO: Implement this function
         """
         #TODO: Implement this function
         num_labels = len(self.label_codebook)
@@ -124,6 +115,7 @@ class CRF(object):
         for t in range(1, len(sequence)+1):
             for s in range(num_labels):
                 k = sum([transition_matrices[t][x][s] * alpha_matrix[x][t-1] for x in range(num_labels)])
+
                 alpha_matrix[s][t] = k
         return alpha_matrix
 
@@ -137,17 +129,14 @@ class CRF(object):
         beta_matrix = np.zeros((num_labels, len(sequence) + 1))
         time = range(len(sequence))
         time.reverse()
-
         #initialization step
         for s in range(num_labels):
             beta_matrix[s][len(sequence)] = 1
-
         #recursion step
         for t in time:
             for s in range(num_labels):
-                k = sum([transition_matrices[t+1][x][s] * beta_matrix[x][t+1] for x in range(num_labels)])
-                beta_matrix[s][t] =  k
-
+                k = sum([transition_matrices[t+1][s][x] * beta_matrix[x][t+1] for x in range(num_labels)])
+                beta_matrix[s][t] = k
         return beta_matrix
 
     def decode(self, sequence):
@@ -161,8 +150,14 @@ class CRF(object):
         #TODO: Implement this function
 
         transition_matrices = self.compute_transition_matrices(sequence)
-        decoded_sequence = range(len(sequence))
-
+        time = range(len(sequence))
+        decoded_sequence = []
+        alpha = self.forward(sequence, transition_matrices)
+        beta = self.backward(sequence, transition_matrices)
+        num_labels = len(transition_matrices[0])
+        f = lambda i: (alpha[i][t]*beta[i][t])/sum([alpha[k][t]*beta[k][t] for k in range(num_labels)])
+        for t in time:
+            decoded_sequence.append(max([s for s in range(num_labels)], key=f))
         return decoded_sequence
 
     def compute_observed_count(self, sequences):

@@ -9,7 +9,7 @@ class TestCRF(TestCase):
         crf = CRF(self.corpus.label_codebook, self.corpus.feature_codebook)
         self.crf = crf
 
-    def test_alphe0(self):
+    def test_alpha0(self):
         """ Check the base case for alpha"""
         sequence = self.corpus[0]
         transition_matrices = self.crf.compute_transition_matrices(sequence)

@@ -5,7 +5,7 @@ from unittest import TestCase, main
 class TestSegmenting(TestCase):
 
     def setUp(self):
-        self.corpus = ThaiWordCorpus('orchid97_features.bio', Character)
+        self.corpus = ThaiWordCorpus('orchid97_features.bio', Character2)
         crf = CRF(self.corpus.label_codebook, self.corpus.feature_codebook)
         self.crf =crf
 
